@@ -1,26 +1,1531 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
-<body style="margin: 0; padding: 0;">
-    <table style="border-collapse: collapse; margin: 0; padding: 0;">
-        <tr>
-            <td style="vertical-align: middle; padding: 0;">
-                <span style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; font-size: 16px; color: #000000; font-weight: bold;">Louien Franco</span>
-            </td>
-            <td style="vertical-align: middle; padding: 4px 0 0 5px; width: 60px;">
-                <img src="img.png" style="width: 16px; height: 16px; display: block;" alt="verified">
-            </td>
-        </tr>
-        <tr>
-            <td colspan="4" style="vertical-align: middle; padding: 0;">
-                <span style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; font-size: 10px; color: #000000; font-style: italic;">—</span>
-                <span style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; font-size: 10px; color: #000000; font-style: italic;">louienfrancoaxalan@gmail.com</span>
-            </td>
-        </tr>
-    </table>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zinc Text-Based RPG Lobby Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      :root {
+        color-scheme: dark;
+        --scan-opacity: 0.45;
+      }
+
+      html {
+        height: 100%;
+        min-height: 100vh;
+        min-height: 100dvh;
+        /* Tailwind uses rem. Scaling the root font-size scales the whole UI proportionally. */
+        /* Scale proportionally up to a 500px design width, then cap. */
+        font-size: clamp(6px, 3.2vw, 16px);
+        -webkit-text-size-adjust: 100%;
+      }
+
+      body {
+        min-height: 100vh;
+        min-height: 100dvh;
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+          Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      /* Terminal scanlines + subtle vignette */
+      .terminal-surface {
+        position: relative;
+        isolation: isolate;
+        contain: paint;
+      }
+
+      .terminal-surface::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 20;
+        background: repeating-linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.035),
+          rgba(255, 255, 255, 0.035) 1px,
+          rgba(0, 0, 0, 0) 3px,
+          rgba(0, 0, 0, 0) 6px
+        );
+        mix-blend-mode: overlay;
+        opacity: var(--scan-opacity, 0.45);
+      }
+
+      .terminal-surface::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 10;
+        background: radial-gradient(
+            140% 95% at 50% 10%,
+            rgba(255, 255, 255, 0.06),
+            rgba(0, 0, 0, 0) 55%
+          ),
+          radial-gradient(
+            140% 110% at 50% 100%,
+            rgba(0, 0, 0, 0),
+            rgba(0, 0, 0, 0.65)
+          );
+        opacity: 0.85;
+      }
+
+      /* Subtle flicker (quiet, not flashy) */
+      @keyframes flicker {
+        0% {
+          opacity: 1;
+          filter: blur(0px);
+        }
+        2% {
+          opacity: 0.92;
+        }
+        3% {
+          opacity: 1;
+        }
+        6% {
+          opacity: 0.96;
+        }
+        7% {
+          opacity: 1;
+        }
+        12% {
+          opacity: 0.98;
+        }
+        14% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+      .flicker {
+        animation: flicker 6.5s infinite;
+      }
+
+      /* Cursor blink */
+      @keyframes blink {
+        0%,
+        49% {
+          opacity: 1;
+        }
+        50%,
+        100% {
+          opacity: 0;
+        }
+      }
+      .cursor {
+        display: inline-block;
+        width: 0.7ch;
+        background: currentColor;
+        margin-left: 0.15ch;
+        transform: translateY(0.1em);
+        animation: blink 1.1s steps(1, end) infinite;
+        opacity: 0.85;
+      }
+
+      /* Smooth panel transitions */
+      .panel {
+        transition: opacity 240ms ease, transform 240ms ease;
+      }
+      .panel[aria-hidden="true"] {
+        opacity: 0;
+        transform: translateY(6px);
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+      }
+
+      /* Override reduced motion when user toggles it */
+      html.reduce-motion .panel {
+        transition: none !important;
+      }
+      html.reduce-motion .flicker {
+        animation: none !important;
+      }
+      html.reduce-motion .cursor {
+        animation: none !important;
+      }
+
+      /* Respect system reduced motion */
+      @media (prefers-reduced-motion: reduce) {
+        .panel {
+          transition: none;
+        }
+        .flicker {
+          animation: none;
+        }
+        .terminal-surface::before {
+          opacity: 0.22;
+        }
+        .cursor {
+          animation: none;
+          opacity: 0.75;
+        }
+      }
+
+      /* Scrollbar (subtle zinc) */
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: #52525b transparent;
+      }
+      *::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      *::-webkit-scrollbar-thumb {
+        background: #52525b;
+        border-radius: 999px;
+        border: 3px solid transparent;
+        background-clip: content-box;
+      }
+      *::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+    </style>
+  </head>
+  <body class="bg-zinc-950 text-zinc-200">
+    <div class="min-h-[100vh] min-h-[100dvh] terminal-surface">
+      <div class="mx-auto max-w-5xl px-5 py-6 md:py-10">
+        <header
+          class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between"
+        >
+          <div class="select-none">
+            <div class="text-xs tracking-[0.28em] text-zinc-400">
+              ZINC // SINGLE-OPERATOR LOBBY
+            </div>
+            <h1
+              class="mt-2 text-2xl md:text-3xl font-semibold text-zinc-50 flicker"
+            >
+              <span class="tracking-tight">ZINC TEXT-BASED RPG</span
+              ><span class="text-zinc-300"> / LOBBY</span
+              ><span class="cursor" aria-hidden="true"></span>
+            </h1>
+          </div>
+
+          <div class="flex items-center gap-3 text-xs text-zinc-400">
+            <div
+              class="rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2"
+            >
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-zinc-500">NODE</span>
+                <span id="nodeId" class="text-zinc-200"></span>
+              </div>
+              <div class="mt-1 flex items-center justify-between gap-3">
+                <span class="text-zinc-500">LOCAL</span>
+                <span id="clock" class="text-zinc-200 tabular-nums"></span>
+              </div>
+            </div>
+
+            <div
+              class="hidden md:block rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2"
+            >
+              <div class="text-zinc-500">NAV</div>
+              <div class="mt-1 text-zinc-300">↑ ↓ • ENTER • ESC</div>
+            </div>
+          </div>
+        </header>
+
+        <main
+          class="mt-6 grid grid-cols-1 gap-4 md:mt-8 md:grid-cols-[300px_1fr] md:gap-6"
+        >
+          <section class="rounded-lg border border-zinc-800 bg-zinc-900/35 p-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-xs tracking-[0.26em] text-zinc-400">MENU</h2>
+              <span id="hint" class="text-[11px] text-zinc-500">ready</span>
+            </div>
+
+            <div
+              class="mt-3 space-y-2"
+              role="menu"
+              aria-label="Lobby menu"
+              id="menuRoot"
+            >
+              <button
+                data-view="mission"
+                class="menu-btn w-full text-left rounded-md border border-zinc-600/70 bg-zinc-800/70 px-3 py-3 text-sm text-zinc-50 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                role="menuitem"
+              >
+                <div class="flex items-center justify-between">
+                  <span>Start Mission</span>
+                  <span class="text-xs text-zinc-300">[ENTER]</span>
+                </div>
+                <div class="mt-1 text-xs text-zinc-400">
+                  Generate an op brief and deploy.
+                </div>
+              </button>
+
+              <button
+                data-view="load"
+                class="menu-btn w-full text-left rounded-md border border-zinc-600/70 bg-zinc-800/70 px-3 py-3 text-sm text-zinc-50 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                role="menuitem"
+              >
+                <div class="flex items-center justify-between">
+                  <span>Load Data</span>
+                  <span class="text-xs text-zinc-300">[ENTER]</span>
+                </div>
+                <div class="mt-1 text-xs text-zinc-400">
+                  Import / export operator profile.
+                </div>
+              </button>
+
+              <button
+                data-view="settings"
+                class="menu-btn w-full text-left rounded-md border border-zinc-600/70 bg-zinc-800/70 px-3 py-3 text-sm text-zinc-50 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                role="menuitem"
+              >
+                <div class="flex items-center justify-between">
+                  <span>Settings</span>
+                  <span class="text-xs text-zinc-300">[ENTER]</span>
+                </div>
+                <div class="mt-1 text-xs text-zinc-400">
+                  Typing speed, flicker, motion.
+                </div>
+              </button>
+
+              <button
+                data-view="credits"
+                class="menu-btn w-full text-left rounded-md border border-zinc-600/70 bg-zinc-800/70 px-3 py-3 text-sm text-zinc-50 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                role="menuitem"
+              >
+                <div class="flex items-center justify-between">
+                  <span>Credits</span>
+                  <span class="text-xs text-zinc-300">[ENTER]</span>
+                </div>
+                <div class="mt-1 text-xs text-zinc-400">
+                  Minimal build notes.
+                </div>
+              </button>
+            </div>
+
+            <div
+              class="mt-4 rounded-md border border-zinc-800 bg-zinc-950/40 px-3 py-3 text-xs text-zinc-400"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-zinc-500">STATUS</span>
+                <span id="statusLine" class="text-zinc-300">idle</span>
+              </div>
+              <div class="mt-2 text-zinc-500">
+                Tip: Use arrow keys to select. ESC returns to menu.
+              </div>
+            </div>
+          </section>
+
+          <section
+            class="relative rounded-lg border border-zinc-800 bg-zinc-900/20"
+          >
+            <div
+              class="flex items-center justify-between border-b border-zinc-800 px-4 py-3"
+            >
+              <div class="flex items-center gap-3">
+                <div class="h-2 w-2 rounded-full bg-zinc-700"></div>
+                <div class="h-2 w-2 rounded-full bg-zinc-700"></div>
+                <div class="h-2 w-2 rounded-full bg-zinc-700"></div>
+                <div class="ml-2 text-xs tracking-[0.22em] text-zinc-400">
+                  TERMINAL
+                </div>
+              </div>
+              <div class="text-xs text-zinc-500">single-player // no map</div>
+            </div>
+
+            <div class="relative min-h-[min(420px,55dvh)] p-4 md:p-6">
+              <div id="panel-home" class="panel" aria-hidden="false">
+                <div class="text-xs tracking-[0.26em] text-zinc-400">
+                  WELCOME
+                </div>
+                <div class="mt-3 space-y-3">
+                  <p class="text-sm text-zinc-200 leading-relaxed">
+                    Quiet systems. No neon. Just zinc and static.
+                  </p>
+                  <div
+                    class="rounded-md border border-zinc-800 bg-zinc-950/35 p-4"
+                  >
+                    <div
+                      class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
+                    >
+                      <div>
+                        <div class="text-xs text-zinc-500">OPERATOR</div>
+                        <div
+                          class="mt-1 text-sm text-zinc-50"
+                          id="operatorName"
+                        >
+                          —
+                        </div>
+                        <div
+                          class="mt-1 text-xs text-zinc-400"
+                          id="operatorMeta"
+                        >
+                          —
+                        </div>
+                      </div>
+                      <div class="text-xs text-zinc-400">
+                        <div>
+                          <span class="text-zinc-500">Seed</span>:
+                          <span id="seedLabel" class="text-zinc-200"></span>
+                        </div>
+                        <div class="mt-1">
+                          <span class="text-zinc-500">Profile</span>:
+                          <span id="profileState" class="text-zinc-200"
+                            >local</span
+                          >
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="text-xs text-zinc-500">
+                    Select a menu item to proceed. The lobby can generate a
+                    mission briefing and simulate save data.
+                  </div>
+                </div>
+              </div>
+
+              <div id="panel-mission" class="panel" aria-hidden="true">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <div class="text-xs tracking-[0.26em] text-zinc-400">
+                      START MISSION
+                    </div>
+                    <div class="mt-2 text-xs text-zinc-500">
+                      procedural briefing // terminal output
+                    </div>
+                  </div>
+                  <button
+                    data-action="back"
+                    class="rounded-md border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                  >
+                    ESC / Back
+                  </button>
+                </div>
+
+                <div
+                  class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_220px]"
+                >
+                  <div
+                    class="rounded-md border border-zinc-800 bg-zinc-950/35 p-4"
+                  >
+                    <pre
+                      id="missionOutput"
+                      class="text-sm text-zinc-200 leading-relaxed min-h-[220px]"
+                    ></pre>
+                  </div>
+
+                  <div
+                    class="rounded-md border border-zinc-800 bg-zinc-950/20 p-4"
+                  >
+                    <div class="text-xs tracking-[0.24em] text-zinc-400">
+                      CONTROLS
+                    </div>
+                    <div class="mt-3 space-y-2">
+                      <button
+                        id="btnGenerate"
+                        class="w-full rounded-md border border-zinc-600/70 bg-zinc-800/70 px-3 py-2 text-sm text-zinc-50 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                      >
+                        Generate Brief
+                      </button>
+                      <button
+                        id="btnDeploy"
+                        class="w-full rounded-md border border-zinc-600/70 bg-zinc-800/70 px-3 py-2 text-sm text-zinc-50 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                      >
+                        Deploy (Sim)
+                      </button>
+                      <button
+                        id="btnClear"
+                        class="w-full rounded-md border border-zinc-700 bg-zinc-900/40 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                      >
+                        Clear
+                      </button>
+                    </div>
+
+                    <div class="mt-4 text-xs text-zinc-500">
+                      Settings affect typing speed and visual noise.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="panel-load" class="panel" aria-hidden="true">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <div class="text-xs tracking-[0.26em] text-zinc-400">
+                      LOAD DATA
+                    </div>
+                    <div class="mt-2 text-xs text-zinc-500">
+                      localStorage // import/export
+                    </div>
+                  </div>
+                  <button
+                    data-action="back"
+                    class="rounded-md border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                  >
+                    ESC / Back
+                  </button>
+                </div>
+
+                <div class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1fr]">
+                  <div
+                    class="rounded-md border border-zinc-800 bg-zinc-950/35 p-4"
+                  >
+                    <div class="text-xs tracking-[0.24em] text-zinc-400">
+                      LOCAL PROFILE
+                    </div>
+                    <div class="mt-3 text-xs text-zinc-500">
+                      Stored in this browser only.
+                    </div>
+
+                    <div class="mt-4 space-y-2">
+                      <div
+                        class="rounded-md border border-zinc-800 bg-zinc-950/20 p-3"
+                      >
+                        <div class="flex items-center justify-between text-xs">
+                          <span class="text-zinc-500">Operator</span>
+                          <span id="loadOperator" class="text-zinc-200"></span>
+                        </div>
+                        <div
+                          class="mt-2 flex items-center justify-between text-xs"
+                        >
+                          <span class="text-zinc-500">Last brief</span>
+                          <span id="loadLastBrief" class="text-zinc-300"
+                            >—</span
+                          >
+                        </div>
+                      </div>
+
+                      <div class="flex gap-2">
+                        <button
+                          id="btnNewProfile"
+                          class="flex-1 rounded-md border border-zinc-600/70 bg-zinc-800/70 px-3 py-2 text-sm text-zinc-50 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                        >
+                          New Profile
+                        </button>
+                        <button
+                          id="btnWipe"
+                          class="rounded-md border border-zinc-700 bg-zinc-900/40 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                        >
+                          Wipe
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    class="rounded-md border border-zinc-800 bg-zinc-950/35 p-4"
+                  >
+                    <div class="text-xs tracking-[0.24em] text-zinc-400">
+                      IMPORT / EXPORT
+                    </div>
+                    <div class="mt-3 text-xs text-zinc-500">
+                      Copy JSON to move your profile.
+                    </div>
+
+                    <div class="mt-4 space-y-2">
+                      <textarea
+                        id="jsonBox"
+                        class="h-44 w-full resize-none rounded-md border border-zinc-700 bg-zinc-950/40 px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                        spellcheck="false"
+                        placeholder="{...}"
+                      ></textarea>
+                      <div class="flex gap-2">
+                        <button
+                          id="btnExport"
+                          class="flex-1 rounded-md border border-zinc-600/70 bg-zinc-800/70 px-3 py-2 text-sm text-zinc-50 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                        >
+                          Export
+                        </button>
+                        <button
+                          id="btnImport"
+                          class="flex-1 rounded-md border border-zinc-600/70 bg-zinc-800/70 px-3 py-2 text-sm text-zinc-50 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                        >
+                          Import
+                        </button>
+                      </div>
+                      <div id="jsonMsg" class="text-xs text-zinc-500">—</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="panel-settings" class="panel" aria-hidden="true">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <div class="text-xs tracking-[0.26em] text-zinc-400">
+                      SETTINGS
+                    </div>
+                    <div class="mt-2 text-xs text-zinc-500">
+                      keep it quiet // zinc-only
+                    </div>
+                  </div>
+                  <button
+                    data-action="back"
+                    class="rounded-md border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                  >
+                    ESC / Back
+                  </button>
+                </div>
+
+                <div class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1fr]">
+                  <div
+                    class="rounded-md border border-zinc-800 bg-zinc-950/35 p-4"
+                  >
+                    <div class="text-xs tracking-[0.24em] text-zinc-400">
+                      TEXT OUTPUT
+                    </div>
+
+                    <label class="mt-4 block text-xs text-zinc-500"
+                      >Typing speed</label
+                    >
+                    <input
+                      id="typingSpeed"
+                      type="range"
+                      min="5"
+                      max="60"
+                      value="22"
+                      class="mt-2 w-full accent-zinc-400"
+                    />
+                    <div
+                      class="mt-1 flex items-center justify-between text-xs text-zinc-500"
+                    >
+                      <span>slow</span><span>fast</span>
+                    </div>
+
+                    <label class="mt-4 block text-xs text-zinc-500">Tone</label>
+                    <select
+                      id="tone"
+                      class="mt-2 w-full rounded-md border border-zinc-700 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                    >
+                      <option value="quiet" selected>quiet</option>
+                      <option value="clinical">clinical</option>
+                      <option value="grim">grim</option>
+                    </select>
+
+                    <div
+                      class="mt-4 rounded-md border border-zinc-800 bg-zinc-950/20 p-3 text-xs text-zinc-500"
+                    >
+                      Changes apply instantly. Profile persists locally.
+                    </div>
+                  </div>
+
+                  <div
+                    class="rounded-md border border-zinc-800 bg-zinc-950/35 p-4"
+                  >
+                    <div class="text-xs tracking-[0.24em] text-zinc-400">
+                      VISUAL NOISE
+                    </div>
+
+                    <div class="mt-4 flex items-center justify-between gap-3">
+                      <div>
+                        <div class="text-sm text-zinc-200">Title flicker</div>
+                        <div class="text-xs text-zinc-500">
+                          Subtle opacity jitter.
+                        </div>
+                      </div>
+                      <button
+                        id="toggleFlicker"
+                        class="rounded-md border border-zinc-600/70 bg-zinc-800/70 px-3 py-2 text-sm text-zinc-50 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                      >
+                        on
+                      </button>
+                    </div>
+
+                    <div class="mt-3 flex items-center justify-between gap-3">
+                      <div>
+                        <div class="text-sm text-zinc-200">Scanlines</div>
+                        <div class="text-xs text-zinc-500">
+                          Terminal overlay.
+                        </div>
+                      </div>
+                      <button
+                        id="toggleScan"
+                        class="rounded-md border border-zinc-600/70 bg-zinc-800/70 px-3 py-2 text-sm text-zinc-50 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                      >
+                        on
+                      </button>
+                    </div>
+
+                    <div class="mt-3 flex items-center justify-between gap-3">
+                      <div>
+                        <div class="text-sm text-zinc-200">Reduced motion</div>
+                        <div class="text-xs text-zinc-500">
+                          Disable transitions + flicker.
+                        </div>
+                      </div>
+                      <button
+                        id="toggleMotion"
+                        class="rounded-md border border-zinc-600/70 bg-zinc-800/70 px-3 py-2 text-sm text-zinc-50 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                      >
+                        off
+                      </button>
+                    </div>
+
+                    <div class="mt-4 flex gap-2">
+                      <button
+                        id="btnResetSettings"
+                        class="flex-1 rounded-md border border-zinc-700 bg-zinc-900/40 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        id="btnTestOutput"
+                        class="flex-1 rounded-md border border-zinc-600/70 bg-zinc-800/70 px-3 py-2 text-sm text-zinc-50 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                      >
+                        Test Output
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="panel-credits" class="panel" aria-hidden="true">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <div class="text-xs tracking-[0.26em] text-zinc-400">
+                      CREDITS
+                    </div>
+                    <div class="mt-2 text-xs text-zinc-500">
+                      minimal lobby generator
+                    </div>
+                  </div>
+                  <button
+                    data-action="back"
+                    class="rounded-md border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-200 hover:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-500/40"
+                  >
+                    ESC / Back
+                  </button>
+                </div>
+
+                <div class="mt-4 space-y-3">
+                  <div
+                    class="rounded-md border border-zinc-800 bg-zinc-950/35 p-4 text-sm text-zinc-200 leading-relaxed"
+                  >
+                    <p class="text-zinc-50">
+                      Zinc Text-Based RPG Lobby Generator
+                    </p>
+                    <p class="mt-2 text-zinc-300">
+                      A quiet terminal surface for single-operator play. Mission
+                      briefs are procedural text only. No map. No neon.
+                    </p>
+                    <p class="mt-3 text-xs text-zinc-500">
+                      Built with Tailwind (zinc palette) + JetBrains Mono. Data
+                      stored locally unless exported.
+                    </p>
+                  </div>
+
+                  <div
+                    class="rounded-md border border-zinc-800 bg-zinc-950/20 p-4 text-xs text-zinc-500"
+                  >
+                    <div class="flex items-center justify-between">
+                      <span>Build</span>
+                      <span class="text-zinc-300">ZINC-LOBBY // SP</span>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between">
+                      <span>Palette</span>
+                      <span class="text-zinc-300">zinc only</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <footer
+          class="mt-6 md:mt-8 flex items-center justify-between text-xs text-zinc-500"
+        >
+          <div class="tracking-[0.22em]">v0.9.8 // quiet build</div>
+          <div class="text-zinc-600">© local loop</div>
+        </footer>
+      </div>
+    </div>
+
+    <script>
+      // ----------------------------
+      // State + persistence
+      // ----------------------------
+      const LS_KEY = "zinc_rpg_lobby_profile_v1";
+      const LS_SETTINGS = "zinc_rpg_lobby_settings_v1";
+
+      function randId() {
+        const a = crypto.getRandomValues(new Uint8Array(8));
+        return [...a]
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("")
+          .toUpperCase();
+      }
+
+      function nowISOShort() {
+        const d = new Date();
+        const pad = (n) => String(n).padStart(2, "0");
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+          d.getDate()
+        )} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      }
+
+      function generateCallsign() {
+        const a = [
+          "SABLE",
+          "DRIFT",
+          "NULL",
+          "GHOST",
+          "ASH",
+          "DUST",
+          "VAULT",
+          "KITE",
+          "MUTE",
+          "KERN",
+          "RIVET",
+          "WISP",
+          "CIPHER",
+          "HALO",
+          "BRASS",
+          "SILT",
+        ];
+        const b = [
+          "01",
+          "02",
+          "04",
+          "07",
+          "11",
+          "13",
+          "17",
+          "19",
+          "23",
+          "29",
+          "31",
+          "37",
+        ];
+        return `${a[Math.floor(Math.random() * a.length)]}-${
+          b[Math.floor(Math.random() * b.length)]
+        }`;
+      }
+
+      const defaultProfile = () => ({
+        schema: 1,
+        nodeId: randId(),
+        seed: Math.floor(Math.random() * 1e9),
+        operator: {
+          callsign: generateCallsign(),
+          clearance: ["Z-1", "Z-2", "Z-3", "Z-4"][
+            Math.floor(Math.random() * 4)
+          ],
+          baseline: ["steady", "quiet", "observant", "unreadable"][
+            Math.floor(Math.random() * 4)
+          ],
+        },
+        lastBriefAt: null,
+        lastBrief: null,
+      });
+
+      const defaultSettings = () => ({
+        typingSpeed: 22, // ms/char
+        tone: "quiet",
+        flicker: true,
+        scanlines: true,
+        reducedMotionOverride: false,
+      });
+
+      function loadProfile() {
+        try {
+          const raw = localStorage.getItem(LS_KEY);
+          if (!raw) return null;
+          const p = JSON.parse(raw);
+          if (!p || p.schema !== 1) return null;
+          return p;
+        } catch {
+          return null;
+        }
+      }
+
+      function saveProfile(p) {
+        localStorage.setItem(LS_KEY, JSON.stringify(p));
+      }
+
+      function loadSettings() {
+        try {
+          const raw = localStorage.getItem(LS_SETTINGS);
+          if (!raw) return null;
+          const s = JSON.parse(raw);
+          return s && typeof s === "object" ? s : null;
+        } catch {
+          return null;
+        }
+      }
+
+      let _saveSettingsTimer = 0;
+      function saveSettings(s, immediate = false) {
+        if (_saveSettingsTimer) window.clearTimeout(_saveSettingsTimer);
+        const write = () =>
+          localStorage.setItem(LS_SETTINGS, JSON.stringify(s));
+        if (immediate) return write();
+        _saveSettingsTimer = window.setTimeout(write, 240);
+      }
+
+      let profile = loadProfile() || defaultProfile();
+      let settings = Object.assign(defaultSettings(), loadSettings() || {});
+
+      // ----------------------------
+      // UI refs
+      // ----------------------------
+      const $ = (sel) => document.querySelector(sel);
+      const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+      const nodeIdEl = $("#nodeId");
+      const clockEl = $("#clock");
+      const statusLine = $("#statusLine");
+      const hint = $("#hint");
+
+      const operatorNameEl = $("#operatorName");
+      const operatorMetaEl = $("#operatorMeta");
+      const seedLabel = $("#seedLabel");
+      const profileStateEl = $("#profileState");
+
+      const panels = {
+        home: $("#panel-home"),
+        mission: $("#panel-mission"),
+        load: $("#panel-load"),
+        settings: $("#panel-settings"),
+        credits: $("#panel-credits"),
+      };
+
+      const menuButtons = $$(".menu-btn");
+      const menuRoot = $("#menuRoot");
+
+      // Mission output
+      const missionOutput = $("#missionOutput");
+      const btnGenerate = $("#btnGenerate");
+      const btnDeploy = $("#btnDeploy");
+      const btnClear = $("#btnClear");
+
+      // Load panel
+      const loadOperator = $("#loadOperator");
+      const loadLastBrief = $("#loadLastBrief");
+      const btnNewProfile = $("#btnNewProfile");
+      const btnWipe = $("#btnWipe");
+      const jsonBox = $("#jsonBox");
+      const btnExport = $("#btnExport");
+      const btnImport = $("#btnImport");
+      const jsonMsg = $("#jsonMsg");
+
+      // Settings
+      const typingSpeed = $("#typingSpeed");
+      const tone = $("#tone");
+      const toggleFlicker = $("#toggleFlicker");
+      const toggleScan = $("#toggleScan");
+      const toggleMotion = $("#toggleMotion");
+      const btnResetSettings = $("#btnResetSettings");
+      const btnTestOutput = $("#btnTestOutput");
+
+      // ----------------------------
+      // Navigation
+      // ----------------------------
+      let currentView = "home";
+      let menuIndex = 0;
+      let typingAbort = { abort: false };
+
+      function setStatus(text) {
+        if (statusLine.textContent !== text) statusLine.textContent = text;
+      }
+
+      function setHint(text) {
+        if (hint.textContent !== text) hint.textContent = text;
+        window.clearTimeout(setHint._t);
+        setHint._t = window.setTimeout(
+          () => (hint.textContent = "ready"),
+          1400
+        );
+      }
+
+      function showView(view) {
+        if (!panels[view]) return;
+        currentView = view;
+
+        for (const [k, el] of Object.entries(panels)) {
+          el.setAttribute("aria-hidden", k === view ? "false" : "true");
+        }
+
+        if (view === "home") setStatus("idle");
+        if (view === "mission") setStatus("brief console");
+        if (view === "load") setStatus("data console");
+        if (view === "settings") setStatus("settings console");
+        if (view === "credits") setStatus("credits console");
+
+        setHint(`open:${view}`);
+
+        const idx = menuButtons.findIndex((b) => b.dataset.view === view);
+        if (idx >= 0) menuIndex = idx;
+        paintMenuFocus();
+
+        // Update visible content
+        renderProfile();
+        if (view === "load" || view === "home") renderLoadPanel();
+        if (view === "settings") renderSettings();
+      }
+
+      function paintMenuFocus() {
+        menuButtons.forEach((btn, i) => {
+          const isActive = i === menuIndex;
+          btn.classList.toggle("ring-2", isActive);
+          btn.classList.toggle("ring-zinc-500/40", isActive);
+        });
+      }
+
+      function moveMenu(delta) {
+        menuIndex =
+          (menuIndex + delta + menuButtons.length) % menuButtons.length;
+        paintMenuFocus();
+        menuButtons[menuIndex].focus({ preventScroll: true });
+        setHint("nav");
+      }
+
+      function activateMenu() {
+        const btn = menuButtons[menuIndex];
+        const view = btn?.dataset.view;
+        if (view) showView(view);
+      }
+
+      // ----------------------------
+      // Mission generation
+      // ----------------------------
+      function mulberry32(seed) {
+        let t = seed >>> 0;
+        return function () {
+          t += 0x6d2b79f5;
+          let r = Math.imul(t ^ (t >>> 15), 1 | t);
+          r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+          return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      function pick(rng, arr) {
+        return arr[Math.floor(rng() * arr.length)];
+      }
+
+      function tonePack(kind) {
+        const packs = {
+          quiet: {
+            opener: [
+              "Signal steady.",
+              "No chatter on the line.",
+              "The city is dim. Your console is not.",
+              "Static in the margins. Clear in the center.",
+            ],
+            closer: [
+              "Move slow. Leave no echo.",
+              "Keep it quiet.",
+              "Return only when it’s done.",
+            ],
+          },
+          clinical: {
+            opener: [
+              "Diagnostic green.",
+              "Parameters within tolerance.",
+              "Routing complete. Stand by.",
+            ],
+            closer: [
+              "Execute with minimal deviation.",
+              "Confirm objectives; suppress noise.",
+              "Maintain baseline.",
+            ],
+          },
+          grim: {
+            opener: [
+              "The air tastes like old metal.",
+              "They left the lights on this time.",
+              "You’re early. That’s rarely good.",
+            ],
+            closer: [
+              "Don’t look back.",
+              "If it speaks your name, end it.",
+              "Bring back proof, not stories.",
+            ],
+          },
+        };
+        return packs[kind] || packs.quiet;
+      }
+
+      function generateBrief(seed) {
+        const rng = mulberry32(seed);
+        const pack = tonePack(settings.tone);
+
+        const districts = [
+          "ZINCWARD-09",
+          "GALLERY SUBLEVEL",
+          "ARCHIVE RING",
+          "OLD TRANSIT",
+          "COOLING STACKS",
+          "SALT TUNNELS",
+          "CONCRETE ATRIUM",
+          "WEST SERVICE MAZE",
+        ];
+        const objectives = [
+          "recover a sealed memory shard",
+          "extract an operator ledger",
+          "disable a silent relay",
+          "audit a black-site terminal",
+          "retrieve a biometric imprint",
+          "locate a missing courier",
+          "verify a dead drop",
+          "quarantine a contaminated data cache",
+        ];
+        const complications = [
+          "power is intermittent",
+          "doors listen before they open",
+          "an unknown party is already inside",
+          "your credentials will decay over time",
+          "audio feeds are mirrored",
+          "the route back will not match the route in",
+          "a soft alarm triggers on prolonged stillness",
+          "the building retains faces",
+        ];
+        const adversaries = [
+          "contract security (low-profile)",
+          "automated sentry drones (dull optics)",
+          "corporate auditors (human)",
+          "signal hunters (off-grid)",
+          "maintenance AI (unfriendly compliance)",
+          "local gang scouts (quiet blades)",
+        ];
+        const reward = [
+          "+2 clearance credit",
+          "gear authorization: “zinc key”",
+          "an unmarked favor",
+          "partial debt forgiveness",
+          "access to a sealed transcript",
+        ];
+        const risk = ["LOW", "MODERATE", "HIGH", "SEVERE"];
+
+        const district = pick(rng, districts);
+        const obj = pick(rng, objectives);
+        const comp = pick(rng, complications);
+        const adv = pick(rng, adversaries);
+        const pay = pick(rng, reward);
+        const r = pick(rng, risk);
+
+        const stamp = nowISOShort();
+
+        const lines = [
+          `// BRIEF START :: ${stamp}`,
+          `NODE: ${profile.nodeId}`,
+          `OPERATOR: ${profile.operator.callsign}  |  CLR: ${profile.operator.clearance}  |  BASE: ${profile.operator.baseline}`,
+          "",
+          pick(rng, pack.opener),
+          "",
+          `AO: ${district}`,
+          `OBJECTIVE: ${obj}.`,
+          `COMPLICATION: ${comp}.`,
+          `THREAT: ${adv}.`,
+          `RISK INDEX: ${r}.`,
+          "",
+          `COMPENSATION: ${pay}.`,
+          "",
+          pick(rng, pack.closer),
+          `// BRIEF END`,
+        ];
+
+        return lines.join("\n");
+      }
+
+      function clearOutput() {
+        typingAbort.abort = true;
+        typingAbort = { abort: false };
+        missionOutput.textContent = "";
+      }
+
+      function sleep(ms) {
+        if (settings.reducedMotionOverride) return Promise.resolve();
+        return new Promise((r) => setTimeout(r, ms));
+      }
+
+      function clamp(n, a, b) {
+        return Math.max(a, Math.min(b, n));
+      }
+
+      async function typeTo(el, text) {
+        typingAbort.abort = true;
+        typingAbort = { abort: false };
+        const token = typingAbort;
+
+        if (settings.reducedMotionOverride) {
+          el.textContent = text;
+          return;
+        }
+
+        el.textContent = "";
+        const speed = clamp(settings.typingSpeed, 1, 120);
+        let out = "";
+
+        for (let i = 0; i < text.length; i++) {
+          if (token.abort) return;
+
+          const ch = text[i];
+          out += ch;
+
+          // Batch DOM writes to reduce layout/reflow cost
+          const flush = i % 3 === 0 || ch === "\n" || i === text.length - 1;
+          if (flush) el.textContent = out;
+
+          // Slightly vary cadence on punctuation
+          let extra = 0;
+          if (ch === "\n") extra = speed * 0.8;
+          if (ch === "." || ch === ":") extra = speed * 2.2;
+          if (ch === ",") extra = speed * 1.2;
+
+          await sleep(speed + extra);
+        }
+      }
+
+      async function runGenerate() {
+        setStatus("generating brief");
+        setHint("typing");
+
+        profile.seed = (profile.seed + 1337) % 1000000000;
+        const brief = generateBrief(profile.seed);
+
+        profile.lastBriefAt = new Date().toISOString();
+        profile.lastBrief = brief;
+        saveProfile(profile);
+
+        renderProfile();
+        renderLoadPanel();
+
+        await typeTo(missionOutput, brief);
+        setStatus("brief ready");
+      }
+
+      async function runDeploySim() {
+        setStatus("deploying");
+        setHint("sim");
+
+        const stamp = nowISOShort();
+        const seq = [
+          `// DEPLOYMENT :: ${stamp}`,
+          `Linking...`,
+          `Handshake...`,
+          `Routing...`,
+          `Seal integrity: OK`,
+          `Audio: OFF`,
+          `Light: MIN`,
+          `Operator: ${profile.operator.callsign}`,
+          ``,
+          `DROP IN 3`,
+          `DROP IN 2`,
+          `DROP IN 1`,
+          ``,
+          `// SIM COMPLETE :: return to lobby when ready.`,
+        ].join("\n");
+
+        const combined =
+          (missionOutput.textContent.trim()
+            ? missionOutput.textContent + "\n\n"
+            : "") + seq;
+        await typeTo(missionOutput, combined);
+        setStatus("sim complete");
+      }
+
+      // ----------------------------
+      // Render
+      // ----------------------------
+      function renderProfile() {
+        nodeIdEl.textContent = profile.nodeId;
+        operatorNameEl.textContent = profile.operator.callsign;
+        operatorMetaEl.textContent = `clearance ${profile.operator.clearance} // baseline ${profile.operator.baseline}`;
+        seedLabel.textContent = profile.seed;
+        profileStateEl.textContent = "local";
+      }
+
+      function renderLoadPanel() {
+        loadOperator.textContent = `${profile.operator.callsign} (${profile.operator.clearance})`;
+        loadLastBrief.textContent = profile.lastBriefAt
+          ? new Date(profile.lastBriefAt).toLocaleString()
+          : "—";
+      }
+
+      function setToggle(btn, on) {
+        btn.textContent = on ? "on" : "off";
+        btn.classList.toggle("opacity-70", !on);
+      }
+
+      function renderSettings() {
+        typingSpeed.value = String(settings.typingSpeed);
+        tone.value = settings.tone;
+        setToggle(toggleFlicker, !!settings.flicker);
+        setToggle(toggleScan, !!settings.scanlines);
+        toggleMotion.textContent = settings.reducedMotionOverride
+          ? "on"
+          : "off";
+        toggleMotion.classList.toggle(
+          "opacity-70",
+          !settings.reducedMotionOverride
+        );
+
+        // Apply visuals
+        const h1 = document.querySelector("h1");
+        if (h1)
+          h1.classList.toggle(
+            "flicker",
+            !!settings.flicker && !settings.reducedMotionOverride
+          );
+
+        document.documentElement.style.setProperty(
+          "--scan-opacity",
+          settings.scanlines ? "0.45" : "0"
+        );
+
+        document.documentElement.classList.toggle(
+          "reduce-motion",
+          !!settings.reducedMotionOverride
+        );
+      }
+
+      // ----------------------------
+      // Load / import / export
+      // ----------------------------
+      function newProfile() {
+        profile = defaultProfile();
+        saveProfile(profile);
+        renderProfile();
+        renderLoadPanel();
+        setHint("profile:new");
+        setStatus("profile created");
+      }
+
+      function wipeProfile() {
+        localStorage.removeItem(LS_KEY);
+        profile = defaultProfile();
+        saveProfile(profile);
+        renderProfile();
+        renderLoadPanel();
+        setHint("wiped");
+        setStatus("storage cleared");
+      }
+
+      function exportProfile() {
+        jsonBox.value = JSON.stringify({ profile, settings }, null, 2);
+        jsonMsg.textContent = "export ready (copy JSON)";
+        setHint("export");
+      }
+
+      function importProfile() {
+        try {
+          const obj = JSON.parse(jsonBox.value);
+          if (!obj || typeof obj !== "object") throw new Error("invalid");
+
+          if (obj.profile) {
+            if (obj.profile.schema !== 1) throw new Error("schema mismatch");
+            profile = obj.profile;
+            saveProfile(profile);
+          }
+          if (obj.settings) {
+            settings = Object.assign(defaultSettings(), obj.settings);
+            saveSettings(settings, true);
+          }
+
+          renderProfile();
+          renderLoadPanel();
+          renderSettings();
+          jsonMsg.textContent = "import OK";
+          setStatus("imported");
+          setHint("import");
+        } catch (e) {
+          jsonMsg.textContent = `import failed: ${String(e.message || e)}`;
+          setStatus("import error");
+        }
+      }
+
+      // ----------------------------
+      // Events
+      // ----------------------------
+      // Menu delegation
+      menuRoot.addEventListener("click", (e) => {
+        const btn = e.target.closest(".menu-btn");
+        if (!btn) return;
+        const idx = menuButtons.indexOf(btn);
+        if (idx >= 0) {
+          menuIndex = idx;
+          paintMenuFocus();
+        }
+        showView(btn.dataset.view);
+      });
+
+      menuRoot.addEventListener("mousemove", (e) => {
+        const btn = e.target.closest(".menu-btn");
+        if (!btn) return;
+        const idx = menuButtons.indexOf(btn);
+        if (idx >= 0 && idx !== menuIndex) {
+          menuIndex = idx;
+          paintMenuFocus();
+        }
+      });
+
+      // Back buttons
+      document.addEventListener("click", (e) => {
+        const back = e.target.closest("button[data-action='back']");
+        if (!back) return;
+        showView("home");
+      });
+
+      btnGenerate.addEventListener("click", runGenerate);
+      btnDeploy.addEventListener("click", runDeploySim);
+      btnClear.addEventListener("click", () => {
+        clearOutput();
+        setStatus("cleared");
+        setHint("clear");
+      });
+
+      btnNewProfile.addEventListener("click", newProfile);
+      btnWipe.addEventListener("click", wipeProfile);
+
+      btnExport.addEventListener("click", exportProfile);
+      btnImport.addEventListener("click", importProfile);
+
+      typingSpeed.addEventListener("input", (e) => {
+        settings.typingSpeed = Number(e.target.value);
+        renderSettings();
+        saveSettings(settings);
+        setHint("speed");
+      });
+
+      tone.addEventListener("change", (e) => {
+        settings.tone = e.target.value;
+        renderSettings();
+        saveSettings(settings);
+        setHint("tone");
+      });
+
+      toggleFlicker.addEventListener("click", () => {
+        settings.flicker = !settings.flicker;
+        renderSettings();
+        saveSettings(settings);
+        setHint("flicker");
+      });
+
+      toggleScan.addEventListener("click", () => {
+        settings.scanlines = !settings.scanlines;
+        renderSettings();
+        saveSettings(settings);
+        setHint("scan");
+      });
+
+      toggleMotion.addEventListener("click", () => {
+        settings.reducedMotionOverride = !settings.reducedMotionOverride;
+        renderSettings();
+        saveSettings(settings);
+        setHint("motion");
+      });
+
+      btnResetSettings.addEventListener("click", () => {
+        settings = defaultSettings();
+        renderSettings();
+        saveSettings(settings, true);
+        setHint("reset");
+        setStatus("settings reset");
+      });
+
+      btnTestOutput.addEventListener("click", async () => {
+        showView("mission");
+        const text = [
+          "// TEST OUTPUT",
+          "The terminal holds its breath.",
+          "A quiet line. A quieter intention.",
+          "",
+          "(Generate a brief to begin.)",
+        ].join("\n");
+        await typeTo(missionOutput, text);
+        setStatus("test complete");
+      });
+
+      // Keyboard navigation
+      window.addEventListener("keydown", (e) => {
+        const key = e.key;
+        const inField =
+          document.activeElement &&
+          (document.activeElement.tagName === "TEXTAREA" ||
+            document.activeElement.tagName === "INPUT" ||
+            document.activeElement.tagName === "SELECT");
+
+        if (key === "Escape") {
+          if (currentView !== "home") {
+            showView("home");
+            e.preventDefault();
+            return;
+          }
+        }
+
+        // Don't steal keys while editing inputs, except Escape handled above.
+        if (inField) return;
+
+        if (key === "ArrowDown") {
+          moveMenu(1);
+          e.preventDefault();
+        }
+        if (key === "ArrowUp") {
+          moveMenu(-1);
+          e.preventDefault();
+        }
+        if (key === "Enter") {
+          activateMenu();
+          e.preventDefault();
+        }
+
+        if (key === "g" && currentView === "mission") {
+          runGenerate();
+        }
+        if (key === "d" && currentView === "mission") {
+          runDeploySim();
+        }
+        if (key === "c" && currentView === "mission") {
+          clearOutput();
+        }
+      });
+
+      // Clock
+      function tick() {
+        const d = new Date();
+        const pad = (n) => String(n).padStart(2, "0");
+        clockEl.textContent = `${pad(d.getHours())}:${pad(
+          d.getMinutes()
+        )}:${pad(d.getSeconds())}`;
+      }
+
+      // ----------------------------
+      // Boot
+      // ----------------------------
+      (function init() {
+        // Save defaults if none
+        saveProfile(profile);
+        saveSettings(settings, true);
+
+        renderProfile();
+        renderLoadPanel();
+        renderSettings();
+
+        paintMenuFocus();
+        menuButtons[menuIndex].focus({ preventScroll: true });
+
+        tick();
+        setInterval(tick, 1000);
+
+        setStatus("idle");
+        setHint("ready");
+      })();
+    </script>
+  </body>
 </html>

@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AlaeStock Inventory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500,700&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  </head>
+
+  <body
+    class="reduce-motion paper-grain text-[#2b211c] h-[100dvh] flex flex-col items-center p-2 sm:p-6 overflow-hidden"
+  >
+    <div
+      class="bg-[var(--paper)] border border-[var(--border)] shadow-[0_30px_70px_-50px_rgba(43,33,28,0.8)] rounded-2xl overflow-hidden flex flex-col h-full w-full max-w-5xl"
+    >
+      <!-- Header -->
+      <header
+        class="bg-[var(--foam)] p-6 text-white flex flex-col sm:flex-row justify-between items-center shrink-0 border-b border-[var(--border)]"
+      >
+        <div>
+          <div class="flex items-center gap-3">
+            <h1
+              class="text-2xl sm:text-3xl font-brand font-bold tracking-tight"
+            >
+              AlaeStock
+            </h1>
+            <span
+              class="hidden sm:inline-flex text-[11px] px-2 py-1 rounded-full border border-white/20 bg-white/10 text-white/90"
+              >Inventory</span
+            >
+          </div>
+        </div>
+
+        <div class="flex gap-3 mt-4 sm:mt-0">
+          <!-- Filter -->
+          <div class="relative">
+            <button
+              id="filterBtn"
+              type="button"
+              class="relative overflow-visible h-8 w-8 bg-[var(--paper)] text-[var(--cocoa)] hover:bg-[#fbf6ee] rounded-lg inline-flex items-center justify-center transition border border-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--latte)]/70 active:scale-95"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-controls="filterMenu"
+              aria-label="Filter"
+              title="Filter"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="w-4 h-4 block"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  fill="currentColor"
+                  d="M10 18v-2h4v2zm-4-5v-2h12v2zM3 8V6h18v2z"
+                />
+              </svg>
+              <span
+                id="filterIndicator"
+                class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-[var(--paper)] bg-emerald-600"
+                aria-hidden="true"
+              ></span>
+            </button>
+
+            <div
+              id="filterMenu"
+              role="menu"
+              class="hidden fixed w-56 bg-[var(--paper)] rounded-xl shadow-xl border border-[var(--border)] py-2 z-50 origin-top-right transition-all transform opacity-0 scale-95"
+              style="top: 0; left: 0"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                data-filter="all"
+                class="w-full text-left px-4 py-2.5 text-sm text-[#2b211c] hover:bg-[#fbf6ee] flex items-center gap-3 transition"
+              >
+                <span class="w-2.5 h-2.5 rounded-sm bg-[#6b5b4f]"></span> All
+                Status
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-filter="green"
+                class="w-full text-left px-4 py-2.5 text-sm text-[#2b211c] hover:bg-[#fbf6ee] flex items-center gap-3 transition"
+              >
+                <span class="w-2.5 h-2.5 rounded-sm bg-emerald-600"></span>
+                Healthy (&gt;60%)
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-filter="orange"
+                class="w-full text-left px-4 py-2.5 text-sm text-[#2b211c] hover:bg-[#fbf6ee] flex items-center gap-3 transition"
+              >
+                <span class="w-2.5 h-2.5 rounded-sm bg-amber-500"></span>
+                Warning (31–60%)
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-filter="red"
+                class="w-full text-left px-4 py-2.5 text-sm text-[#2b211c] hover:bg-[#fbf6ee] flex items-center gap-3 transition"
+              >
+                <span class="w-2.5 h-2.5 rounded-sm bg-rose-600"></span>
+                Critical (0–30%)
+              </button>
+            </div>
+          </div>
+
+          <!-- Sort -->
+          <button
+            id="sortBtn"
+            type="button"
+            class="h-8 w-8 bg-[var(--paper)] text-[var(--cocoa)] hover:bg-[#fbf6ee] rounded-lg inline-flex items-center justify-center transition border border-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--latte)]/70 active:scale-95"
+            aria-pressed="false"
+            title="Sort: Ascending (Critical → Healthy)"
+          >
+            <span id="sortIcon" class="w-4 h-4"></span>
+            <span class="sr-only" id="sortLabel">Sort: Ascending</span>
+          </button>
+
+          <!-- Add -->
+          <button
+            id="addBtn"
+            type="button"
+            class="h-8 w-8 bg-[var(--paper)] text-[var(--cocoa)] hover:bg-[#fbf6ee] rounded-lg inline-flex items-center justify-center transition border border-[var(--border)] focus:outline-none focus:ring-2 focus:ring-[var(--latte)]/70"
+            title="Add New Item"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-4 h-4 block"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path fill="currentColor" d="M11 13H5v-2h6V5h2v6h6v2h-6v6h-2z" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Table -->
+      <main class="overflow-auto custom-scrollbar flex-grow relative">
+        <table
+          class="w-full table-fixed text-sm text-left text-[#6b5b4f]"
+          aria-label="Inventory table"
+        >
+          <thead
+            class="text-[11px] text-[#3f332c] uppercase bg-[#f4eadc] sticky top-0 z-10 shadow-sm border-b border-[var(--border)]"
+          >
+            <tr>
+              <th
+                scope="col"
+                class="px-3 py-2 w-[82px] text-center tracking-wider border-r border-[var(--border)]"
+              >
+                Status
+              </th>
+              <th
+                scope="col"
+                class="px-6 py-2 text-left tracking-wider border-r border-[var(--border)]"
+              >
+                Item
+              </th>
+              <th
+                scope="col"
+                class="px-6 py-2 text-right tracking-wider w-28 sm:w-36 md:w-40 border-r border-[var(--border)]"
+              >
+                Stock
+              </th>
+              <th
+                scope="col"
+                class="px-3 py-2 w-14 text-center tracking-wider"
+              ></th>
+            </tr>
+          </thead>
+          <tbody id="inventoryTableBody" class="bg-[var(--paper)]"></tbody>
+        </table>
+
+        <!-- Empty State -->
+        <div
+          id="emptyState"
+          class="hidden flex-col items-center justify-center py-12 text-center"
+        >
+          <div
+            class="bg-[#fbf6ee] border border-[var(--border)] rounded-full p-4 mb-4"
+            aria-hidden="true"
+          >
+            <svg
+              class="w-8 h-8 text-[#9b8573]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+              />
+            </svg>
+          </div>
+          <h3 class="text-lg font-brand font-semibold text-[#2b211c]">
+            No items yet
+          </h3>
+          <p class="text-[#6b5b4f] mt-1">
+            Add your first item to start tracking your café inventory.
+          </p>
+          <button
+            id="emptyAddBtn"
+            type="button"
+            class="mt-4 text-[var(--cocoa)] hover:text-[#394b46] font-medium"
+          >
+            Add an item →
+          </button>
+        </div>
+      </main>
+
+      <!-- Footer / Legend -->
+      <footer
+        class="bg-[#fbf6ee] px-6 py-3 border-t border-[var(--border)] text-xs text-[#6b5b4f] shrink-0 flex gap-4 justify-center sm:justify-start"
+      >
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-sm bg-emerald-600"></span> Healthy
+          (61–100%+)
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-sm bg-amber-500"></span> Warning
+          (31–60%)
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-sm bg-rose-600"></span> Critical
+          (0–30%)
+        </div>
+      </footer>
+    </div>
+
+    <!-- Add Item Modal -->
+    <div
+      id="itemModal"
+      class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50 backdrop-blur-[2px] transition-opacity opacity-0"
+      aria-hidden="true"
+    >
+      <div
+        class="bg-[var(--paper)] border border-[var(--border)] rounded-xl shadow-2xl w-full max-w-md m-4 transform transition-all scale-95"
+        id="modalContent"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="addModalTitle"
+        tabindex="-1"
+      >
+        <div
+          class="px-6 py-4 border-b border-[var(--border)] flex justify-between items-center bg-[#fbf6ee] rounded-t-xl"
+        >
+          <h3
+            id="addModalTitle"
+            class="text-xl font-brand font-semibold text-[#2b211c]"
+          >
+            Add Item
+          </h3>
+          <button
+            id="addModalCloseBtn"
+            type="button"
+            class="text-[#9b8573] hover:text-[#6b5b4f] transition"
+            aria-label="Close"
+          >
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <form id="addItemForm" class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-[#3f332c] mb-2"
+              >Unit</label
+            >
+            <div class="grid grid-cols-4 gap-2">
+              <label class="cursor-pointer">
+                <input
+                  type="radio"
+                  name="unitType"
+                  value="pcs"
+                  class="peer sr-only"
+                  checked
+                />
+                <div
+                  class="rounded-lg border border-[var(--border)] p-2 text-center peer-checked:border-[var(--latte)] peer-checked:bg-[#fbf6ee] peer-checked:text-[var(--coffee)] transition hover:bg-[#fbf6ee] h-full flex items-center justify-center"
+                >
+                  <span class="block text-xs font-semibold">Pcs</span>
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input
+                  type="radio"
+                  name="unitType"
+                  value="ml"
+                  class="peer sr-only"
+                />
+                <div
+                  class="rounded-lg border border-[var(--border)] p-2 text-center peer-checked:border-[var(--latte)] peer-checked:bg-[#fbf6ee] peer-checked:text-[var(--coffee)] transition hover:bg-[#fbf6ee] h-full flex items-center justify-center"
+                >
+                  <span class="block text-xs font-semibold">ml</span>
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input
+                  type="radio"
+                  name="unitType"
+                  value="g"
+                  class="peer sr-only"
+                />
+                <div
+                  class="rounded-lg border border-[var(--border)] p-2 text-center peer-checked:border-[var(--latte)] peer-checked:bg-[#fbf6ee] peer-checked:text-[var(--coffee)] transition hover:bg-[#fbf6ee] h-full flex items-center justify-center"
+                >
+                  <span class="block text-xs font-semibold">g</span>
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input
+                  type="radio"
+                  name="unitType"
+                  value="%"
+                  class="peer sr-only"
+                />
+                <div
+                  class="rounded-lg border border-[var(--border)] p-2 text-center peer-checked:border-[var(--latte)] peer-checked:bg-[#fbf6ee] peer-checked:text-[var(--coffee)] transition hover:bg-[#fbf6ee] h-full flex items-center justify-center"
+                >
+                  <span class="block text-xs font-semibold">%</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label
+              for="itemName"
+              class="block text-sm font-medium text-[#3f332c] mb-1"
+              >Item Name</label
+            >
+            <input
+              id="itemName"
+              name="itemName"
+              type="text"
+              required
+              autocomplete="off"
+              class="w-full px-4 py-2 border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--latte)]/70 focus:border-[var(--latte)] outline-none transition bg-white"
+              placeholder="e.g. Espresso beans"
+            />
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label
+                for="maxQty"
+                class="block text-sm font-medium text-[#3f332c] mb-1"
+                >Max Quantity</label
+              >
+              <input
+                id="maxQty"
+                name="maxQty"
+                type="number"
+                required
+                min="0"
+                step="any"
+                inputmode="decimal"
+                class="w-full px-4 py-2 border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--latte)]/70 focus:border-[var(--latte)] outline-none transition bg-white"
+                placeholder="100"
+              />
+            </div>
+            <div>
+              <label
+                for="currentQty"
+                class="block text-sm font-medium text-[#3f332c] mb-1"
+                >Current Quantity</label
+              >
+              <input
+                id="currentQty"
+                name="currentQty"
+                type="number"
+                required
+                min="0"
+                step="any"
+                inputmode="decimal"
+                class="w-full px-4 py-2 border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--latte)]/70 focus:border-[var(--latte)] outline-none transition bg-white"
+                placeholder="50"
+              />
+            </div>
+          </div>
+
+          <div class="pt-4 flex justify-end gap-3">
+            <button
+              id="addCancelBtn"
+              type="button"
+              class="px-4 py-2 text-sm font-medium text-[#3f332c] bg-[var(--paper)] border border-[var(--border)] rounded-lg hover:bg-[#fbf6ee] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--latte)]/70"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2 text-sm font-medium text-white bg-[var(--coffee)] rounded-lg hover:bg-[var(--latte)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--latte)]/70 shadow-md"
+            >
+              Add Item
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div
+      id="detailModal"
+      class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50 backdrop-blur-[2px] transition-opacity opacity-0"
+      aria-hidden="true"
+    >
+      <div
+        class="bg-[var(--paper)] border border-[var(--border)] rounded-xl shadow-2xl w-full max-w-sm m-4 transform transition-all scale-95"
+        id="detailModalContent"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="detailItemName"
+        tabindex="-1"
+      >
+        <div
+          class="px-6 py-4 border-b border-[var(--border)] flex justify-between items-center bg-[#fbf6ee] rounded-t-xl"
+        >
+          <h3
+            class="text-xl font-brand font-bold text-[#2b211c]"
+            id="detailItemName"
+          >
+            Item Name
+          </h3>
+          <button
+            id="detailCloseBtn"
+            type="button"
+            class="text-[#9b8573] hover:text-[#6b5b4f] transition"
+            aria-label="Close"
+          >
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div class="p-6 space-y-6">
+          <div class="flex justify-center">
+            <span
+              id="detailStatusBadge"
+              class="px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm border"
+              >Status</span
+            >
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 text-center">
+            <div
+              class="bg-[#fbf6ee] p-3 rounded-lg border border-[var(--border)]"
+            >
+              <p class="text-xs text-[#6b5b4f] uppercase font-semibold">
+                Current
+              </p>
+              <div class="flex items-baseline justify-center gap-1 mt-1">
+                <input
+                  id="detailCurrentQtyInput"
+                  type="number"
+                  step="any"
+                  inputmode="decimal"
+                  class="w-28 text-center text-lg font-bold text-[#2b211c] border-b border-transparent hover:border-[var(--border)] focus:border-[var(--latte)] outline-none bg-transparent p-0"
+                  aria-label="Current quantity"
+                />
+                <span
+                  id="detailUnitLabel"
+                  class="text-sm text-[#6b5b4f] font-medium"
+                ></span>
+              </div>
+            </div>
+            <div
+              class="bg-[#fbf6ee] p-3 rounded-lg border border-[var(--border)]"
+            >
+              <p class="text-xs text-[#6b5b4f] uppercase font-semibold">Max</p>
+              <div class="flex items-baseline justify-center gap-1 mt-1">
+                <input
+                  id="detailMaxQtyInput"
+                  type="number"
+                  step="any"
+                  inputmode="decimal"
+                  class="w-24 text-center text-xl font-bold text-[#2b211c] border-b border-transparent hover:border-[var(--border)] focus:border-[var(--latte)] outline-none bg-transparent p-0"
+                  aria-label="Max quantity"
+                />
+                <span
+                  id="detailMaxUnitLabel"
+                  class="text-sm text-[#6b5b4f] font-medium"
+                ></span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs text-[#6b5b4f] mb-1">
+              <span>Capacity</span>
+              <span id="detailPercentageText">0%</span>
+            </div>
+            <div
+              class="w-full bg-[#eadfce] rounded-full h-4 overflow-hidden"
+              aria-hidden="true"
+            >
+              <div
+                id="detailProgressBar"
+                class="h-4 rounded-full transition-all duration-500"
+                style="width: 0%"
+              ></div>
+            </div>
+          </div>
+
+          <div id="detailIdHolder" class="hidden"></div>
+        </div>
+
+        <div
+          class="p-4 border-t border-[var(--border)] bg-[#fbf6ee] rounded-b-xl flex justify-between"
+        >
+          <button
+            id="deleteBtn"
+            type="button"
+            class="w-full text-rose-700 hover:text-rose-800 hover:bg-rose-50 font-medium py-2.5 px-4 rounded-lg transition flex items-center justify-center gap-2 border border-transparent hover:border-rose-200"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+            Delete Item
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Restock Modal -->
+    <div
+      id="restockModal"
+      class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50 backdrop-blur-[2px] transition-opacity opacity-0"
+      aria-hidden="true"
+    >
+      <div
+        class="bg-[var(--paper)] border border-[var(--border)] rounded-xl shadow-2xl w-full max-w-md m-4 transform transition-all scale-95"
+        id="restockModalContent"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="restockTitle"
+        tabindex="-1"
+      >
+        <div
+          class="px-6 py-4 border-b border-[var(--border)] flex justify-between items-center bg-[#fbf6ee] rounded-t-xl"
+        >
+          <div>
+            <h3
+              id="restockTitle"
+              class="text-xl font-brand font-semibold text-[#2b211c]"
+            >
+              Restock
+            </h3>
+            <p class="text-xs text-[#6b5b4f] mt-0.5" id="restockItemName">
+              Item
+            </p>
+          </div>
+          <button
+            id="restockCloseBtn"
+            type="button"
+            class="text-[#9b8573] hover:text-[#6b5b4f] transition"
+            aria-label="Close"
+          >
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <form id="restockForm" class="p-6 space-y-4">
+          <div
+            class="bg-[#fbf6ee] border border-[var(--border)] rounded-lg p-3"
+          >
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-[#6b5b4f]">Left</span>
+              <span class="font-mono text-[#2b211c]" id="restockCurrentText"
+                >0</span
+              >
+            </div>
+            <div class="flex items-center justify-between text-sm mt-1">
+              <span class="text-[#6b5b4f]">Previous Max</span>
+              <span class="font-mono text-[#2b211c]" id="restockMaxText"
+                >0</span
+              >
+            </div>
+            <div
+              class="flex items-center justify-between text-sm mt-2 pt-2 border-t border-[var(--border)]"
+            >
+              <span class="text-[#3f332c] font-semibold">After restock</span>
+              <span class="font-mono text-[#2b211c]" id="restockAfterText"
+                >0</span
+              >
+            </div>
+          </div>
+
+          <div>
+            <label
+              for="restockAmount"
+              class="block text-sm font-medium text-[#3f332c] mb-1"
+              >Restock Amount</label
+            >
+            <div class="flex items-baseline gap-2">
+              <input
+                id="restockAmount"
+                name="restockAmount"
+                type="number"
+                required
+                min="0"
+                step="any"
+                inputmode="decimal"
+                class="w-full px-4 py-2 border border-[var(--border)] rounded-lg focus:ring-2 focus:ring-[var(--latte)]/70 focus:border-[var(--latte)] outline-none transition bg-white"
+                placeholder="0"
+              />
+              <span
+                id="restockUnitLabel"
+                class="shrink-0 text-sm text-[#6b5b4f] font-medium"
+              ></span>
+            </div>
+            <p id="restockHint" class="text-xs text-[#6b5b4f] mt-2">
+              Restock = new delivery size. New Max becomes Left + Restock, and
+              Current becomes full at that new Max.
+            </p>
+          </div>
+
+          <div id="restockIdHolder" class="hidden"></div>
+
+          <div class="pt-2 flex justify-end gap-3">
+            <button
+              id="restockCancelBtn"
+              type="button"
+              class="px-4 py-2 text-sm font-medium text-[#3f332c] bg-[var(--paper)] border border-[var(--border)] rounded-lg hover:bg-[#fbf6ee] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--latte)]/70"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2 text-sm font-medium text-white bg-[var(--coffee)] rounded-lg hover:bg-[var(--latte)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--latte)]/70 shadow-md"
+            >
+              Apply Restock
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <script src="script.js"></script>
+  </body>
+</html>
